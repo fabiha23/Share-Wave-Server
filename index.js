@@ -23,6 +23,7 @@ async function run() {
 
     const usersCollection = client.db('shareWave').collection('users')
 
+    //user
     app.post('/users', async (req, res) => {
       const newUser = req.body;
       console.log(newUser);
@@ -30,6 +31,12 @@ async function run() {
       const result = await usersCollection.insertOne(newUser)
       res.send(result)
     })
+
+    app.get('/users', async (req, res) => {
+      const result = await usersCollection.find().toArray();
+      res.send(result)
+    })
+
 
 
 
