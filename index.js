@@ -22,6 +22,7 @@ async function run() {
   try {
 
     const usersCollection = client.db('shareWave').collection('users')
+    const articlesCollection = client.db('shareWave').collection('articles')
 
     //user
     app.post('/users', async (req, res) => {
@@ -33,10 +34,22 @@ async function run() {
     })
 
     app.get('/users', async (req, res) => {
-      const result = await usersCollection.find().toArray();
+      const email = req.query.email
+      const filter = {}
+      if (email) {
+        filter.email = email
+      }
+      const result = await usersCollection.find(filter).toArray();
       res.send(result)
     })
 
+    // article
+    app.post('/articles', async (req, res) => {
+      const newArticle = req.body
+      console.log(newArticle);
+      const result = await articlesCollection.insertOne(newArticle)
+      res.send(result)
+    })
 
 
 
