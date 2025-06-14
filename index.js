@@ -56,11 +56,29 @@ async function run() {
     })
     app.get('/articles/:id', async (req, res) => {
       const id = req.params.id;
-      const query = { _id: new ObjectId(id) }
-      const result = await articlesCollection.findOne(query);
+      const filter = { _id: new ObjectId(id) }
+      const result = await articlesCollection.findOne(filter);
       res.send(result)
     })
+    app.patch('/like/:articleId', async (req, res) => {
+      const id = req.params.articleId
+      const { email } = req.body
+      const filter={ _id: new ObjectId(id) }
+      const article = await articlesCollection.findOne(filter)
 
+      const alreadyLiked = article?.likedBy.includes(email)
+      const updateDoc = alreadyLiked ? {
+        $pull: {
+          likedBy: email
+        }
+      } : {
+        $addToSet: {
+          likedBy: email
+        }
+      }
+      const result = await articlesCollection.updateOne(filter,updateDoc)
+      res.send({liked: !alreadyLiked})
+    })
 
 
     await client.db("admin").command({ ping: 1 });
