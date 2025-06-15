@@ -64,7 +64,7 @@ async function run() {
     app.patch('/like/:articleId', async (req, res) => {
       const id = req.params.articleId
       const { email } = req.body
-      const filter={ _id: new ObjectId(id) }
+      const filter = { _id: new ObjectId(id) }
       const article = await articlesCollection.findOne(filter)
 
       const alreadyLiked = article?.likedBy.includes(email)
@@ -77,15 +77,24 @@ async function run() {
           likedBy: email
         }
       }
-      const result = await articlesCollection.updateOne(filter,updateDoc)
-      res.send({liked: !alreadyLiked})
+      const result = await articlesCollection.updateOne(filter, updateDoc)
+      res.send({ liked: !alreadyLiked })
     })
 
     //comment
-    app.post('/comments',async (req,res)=>{
-      const newComment =req.body
-      const result =await commentsCollection.insertOne(newComment)
+    app.post('/comments', async (req, res) => {
+      const newComment = req.body
+      const result = await commentsCollection.insertOne(newComment)
       res.send(result)
+    })
+    app.get('/comments', async (req, res) => {
+      const article_id = req.query.article_id
+      // console.log(article_id);
+      const filter = {
+        article_id
+      }
+      const comments = await commentsCollection.find(filter).toArray();
+      res.send(comments)
     })
 
 
