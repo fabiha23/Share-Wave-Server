@@ -23,6 +23,7 @@ async function run() {
 
     const usersCollection = client.db('shareWave').collection('users')
     const articlesCollection = client.db('shareWave').collection('articles')
+    const commentsCollection = client.db('shareWave').collection('comments')
 
     //user
     app.post('/users', async (req, res) => {
@@ -78,6 +79,13 @@ async function run() {
       }
       const result = await articlesCollection.updateOne(filter,updateDoc)
       res.send({liked: !alreadyLiked})
+    })
+
+    //comment
+    app.post('/comments',async (req,res)=>{
+      const newComment =req.body
+      const result =await commentsCollection.insertOne(newComment)
+      res.send(result)
     })
 
 
