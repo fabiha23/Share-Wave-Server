@@ -47,12 +47,15 @@ async function run() {
     // article
     app.post('/articles', async (req, res) => {
       const newArticle = req.body
-      console.log(newArticle);
+      // console.log(newArticle);
       const result = await articlesCollection.insertOne(newArticle)
       res.send(result)
     })
     app.get('/articles', async (req, res) => {
-      const articles = await articlesCollection.find().toArray();
+      const { email } = req.query;
+      const filter = email ? { author_email: email } : {};
+
+      const articles = await articlesCollection.find(filter).toArray();
       res.send(articles)
     })
     app.get('/articles/:id', async (req, res) => {
@@ -80,6 +83,12 @@ async function run() {
       const result = await articlesCollection.updateOne(filter, updateDoc)
       res.send({ liked: !alreadyLiked })
     })
+    app.delete('/articles/:id', async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) }
+      const result = await articlesCollection.deleteOne(query);
+      res.send(result)
+    });
     app.get('/topLikes', async (req, res) => {
       const result = await articlesCollection.aggregate([{ $addFields: { likeCount: { $size: "$likedBy" } } }, { $sort: { likeCount: -1 } }, { $limit: 6 }]).toArray()
       res.send(result);
