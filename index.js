@@ -80,6 +80,10 @@ async function run() {
       const result = await articlesCollection.updateOne(filter, updateDoc)
       res.send({ liked: !alreadyLiked })
     })
+    app.get('/topLikes', async (req, res) => {
+      const result = await articlesCollection.aggregate([{ $addFields: { likeCount: { $size: "$likedBy" } } }, { $sort: { likeCount: -1 } }, { $limit: 6 }]).toArray()
+      res.send(result);
+    });
 
     //comment
     app.post('/comments', async (req, res) => {
