@@ -2,12 +2,38 @@ require('dotenv').config()
 const express = require('express')
 const cors = require('cors')
 const app = express()
+const jwt = require('jsonwebtoken');
+const cookieParser = require('cookie-parser')
 const port = process.env.PORT || 3000
 const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 
-app.use(cors())
+app.use(cors({
+  origin: ['http://localhost:5173'],
+  credentials: true
+}))
 app.use(express.json())
+app.use(cookieParser())
 
+const logger = (req, res, next) => {
+  console.log('inside logger middleware');
+  next()
+}
+
+const verifyToken = (req, res, next) => {
+  const token = req?.cookies?.token
+  console.log('cookie in middleware', token);
+  if (!token) {
+    return res.status(401).send({ message: 'token nai' })
+  }
+  //verify token
+  jwt.verify(token, process.env.JWT_ACCESS_SECRET, (err, decoded) => {
+    if (err) {
+      return res.status(401).send({ message: 'unauthorized access err' })
+    }
+    req.decoded = decoded
+    next()
+  })
+}
 
 // Create a MongoClient with a MongoClientOptions object to set the Stable API version
 const client = new MongoClient(process.env.MONGODB_URI, {
@@ -25,6 +51,20 @@ async function run() {
     const articlesCollection = client.db('shareWave').collection('articles')
     const commentsCollection = client.db('shareWave').collection('comments')
 
+    //jwt
+    app.post('/jwt', async (req, res) => {
+      const userData = req.body
+      const token = jwt.sign(userData, process.env.JWT_ACCESS_SECRET, { expiresIn: '1d' }) //token generate
+
+      //set token in cookies
+      res.cookie('token', token, {
+        httpOnly: true,
+        secure: false
+      })
+      console.log('Loaded JWT secret:', process.env.JWT_ACCESS_SECRET);
+
+      res.send({ success: true })
+    })
     //user
     app.post('/users', async (req, res) => {
       const newUser = req.body;
@@ -34,8 +74,11 @@ async function run() {
       res.send(result)
     })
 
-    app.get('/users', async (req, res) => {
+    app.get('/users', logger, verifyToken, async (req, res) => {
       const email = req.query.email
+      if (email !== req.decoded.email) {
+        return res.status(403).send({ message: 'forbidden access' })
+      }
       const filter = {}
       if (email) {
         filter.email = email
@@ -43,6 +86,16 @@ async function run() {
       const result = await usersCollection.find(filter).toArray();
       res.send(result)
     })
+    app.post('/logout', (req, res) => {
+      res.clearCookie('token', {
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'strict',
+        httpOnly: true,
+        path: '/', // Same path used when cookie was set
+      });
+
+      res.status(200).send({ success: true });
+    });
 
     // article
     app.post('/articles', async (req, res) => {
@@ -58,8 +111,12 @@ async function run() {
       const articles = await articlesCollection.find(filter).toArray();
       res.send(articles)
     })
-    app.get('/articles/:id', async (req, res) => {
+    app.get('/articles/:id', logger, verifyToken, async (req, res) => {
       const id = req.params.id;
+      const email = req.query.email;
+      // if (email !== req.decoded.email) {
+      //   return res.status(403).send({ message: 'forbidden access' })
+      // }
       const filter = { _id: new ObjectId(id) }
       const result = await articlesCollection.findOne(filter);
       res.send(result)
@@ -94,12 +151,22 @@ async function run() {
       res.send(result);
     });
     app.get('/categories/:category', async (req, res) => {
-      const {category} = req.params
-      const filter ={category}
+      const { category } = req.params
+      const filter = { category }
       const result = await articlesCollection.find(filter).toArray()
       res.send(result)
     });
-    
+    app.put('/articles/:id', async (req, res) => {
+      const { id } = req.params
+      const updatedArticle = req.body;
+
+      const filter = { _id: new ObjectId(id) }
+      const updatedDoc = {
+        $set: updatedArticle
+      }
+      const result = await articlesCollection.updateOne(filter, updatedDoc)
+      res.send(result)
+    })
 
     //comment
     app.post('/comments', async (req, res) => {
