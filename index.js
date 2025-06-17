@@ -93,6 +93,13 @@ async function run() {
       const result = await articlesCollection.aggregate([{ $addFields: { likeCount: { $size: "$likedBy" } } }, { $sort: { likeCount: -1 } }, { $limit: 6 }]).toArray()
       res.send(result);
     });
+    app.get('/categories/:category', async (req, res) => {
+      const {category} = req.params
+      const filter ={category}
+      const result = await articlesCollection.find(filter).toArray()
+      res.send(result)
+    });
+    
 
     //comment
     app.post('/comments', async (req, res) => {
