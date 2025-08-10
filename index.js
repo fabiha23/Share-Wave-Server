@@ -131,25 +131,51 @@ async function run() {
       const result = await articlesCollection.findOne(filter);
       res.send(result)
     })
-    app.patch('/like/:articleId',logger, verifyToken, async (req, res) => {
-      const id = req.params.articleId
-      const { email } = req.body
-      const filter = { _id: new ObjectId(id) }
-      const article = await articlesCollection.findOne(filter)
+    app.patch('/like/:articleId', logger, verifyToken, async (req, res) => {
+  try {
+    const id = req.params.articleId;
+    const { email } = req.body;
 
-      const alreadyLiked = article?.likedBy.includes(email)
-      const updateDoc = alreadyLiked ? {
-        $pull: {
-          likedBy: email
-        }
-      } : {
-        $addToSet: {
-          likedBy: email
-        }
-      }
-      const result = await articlesCollection.updateOne(filter, updateDoc)
-      res.send({ liked: !alreadyLiked })
-    })
+    if (!email) {
+      return res.status(400).send({ message: 'Email is required in request body' });
+    }
+
+    // Validate ObjectId
+    if (!ObjectId.isValid(id)) {
+      return res.status(400).send({ message: 'Invalid article ID' });
+    }
+
+    const filter = { _id: new ObjectId(id) };
+    const article = await articlesCollection.findOne(filter);
+
+    if (!article) {
+      return res.status(404).send({ message: 'Article not found' });
+    }
+
+    // Defensive check for likedBy array
+    if (!Array.isArray(article.likedBy)) {
+      article.likedBy = [];
+    }
+
+    const alreadyLiked = article.likedBy.includes(email);
+
+    const updateDoc = alreadyLiked
+      ? { $pull: { likedBy: email } }
+      : { $addToSet: { likedBy: email } };
+
+    const result = await articlesCollection.updateOne(filter, updateDoc);
+
+    if (result.modifiedCount === 0) {
+      return res.status(500).send({ message: 'Failed to update like status' });
+    }
+
+    res.send({ liked: !alreadyLiked });
+  } catch (error) {
+    console.error('Error in /like/:articleId:', error);
+    res.status(500).send({ message: 'Internal Server Error' });
+  }
+});
+
     app.delete('/articles/:id', async (req, res) => {
       const id = req.params.id;
       const query = { _id: new ObjectId(id) }
