@@ -107,13 +107,26 @@ async function run() {
       const result = await articlesCollection.insertOne(newArticle)
       res.send(result)
     })
-    app.get('/articles', async (req, res) => {
-      const { email } = req.query;
-      const filter = email ? { author_email: email } : {};
+   app.get('/articles', async (req, res) => {
+  const { email, sort } = req.query;
+  const filter = email ? { author_email: email } : {};
 
-      const articles = await articlesCollection.find(filter).toArray();
-      res.send(articles)
-    })
+  let sortOption = {};
+  if (sort === 'oldest') {
+    sortOption = { date: 1 };  // oldest first
+  } else {
+    sortOption = { date: -1 }; // newest first
+  }
+
+  try {
+    const articles = await articlesCollection.find(filter).sort(sortOption).toArray();
+    res.send(articles);
+  } catch (error) {
+    res.status(500).send({ message: 'Failed to fetch articles' });
+  }
+});
+
+
     app.get('/myArticles',logger, verifyToken, async (req, res) => {
       const { email } = req.query;
       const filter = { author_email: email };
