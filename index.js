@@ -8,7 +8,7 @@ const port = process.env.PORT || 3000
 const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 
 app.use(cors({
-  origin: ['http://localhost:5173'],
+  origin: ['http://localhost:5173','https://adorable-axolotl-f0632a.netlify.app'],
   credentials: true
 }))
 app.use(express.json())
@@ -55,11 +55,14 @@ async function run() {
     app.post('/jwt', async (req, res) => {
       const userData = req.body
       const token = jwt.sign(userData, process.env.JWT_ACCESS_SECRET, { expiresIn: '1d' }) //token generate
+      console.log(token);
 
       //set token in cookies
       res.cookie('token', token, {
         httpOnly: true,
-        secure: false
+        secure: true,
+        sameSite: "none",
+        maxAge: 3*24*60*60*1000
       })
       console.log('Loaded JWT secret:', process.env.JWT_ACCESS_SECRET);
 
@@ -74,11 +77,11 @@ async function run() {
       res.send(result)
     })
 
-    app.get('/users', logger, verifyToken, async (req, res) => {
+    app.get('/users', async (req, res) => {
       const email = req.query.email
-      if (email !== req.decoded.email) {
-        return res.status(403).send({ message: 'forbidden access' })
-      }
+      // if (email !== req.decoded.email) {
+      //   return res.status(403).send({ message: 'forbidden access' })
+      // }
       const filter = {}
       if (email) {
         filter.email = email
@@ -111,7 +114,14 @@ async function run() {
       const articles = await articlesCollection.find(filter).toArray();
       res.send(articles)
     })
-    app.get('/articles/:id', logger, verifyToken, async (req, res) => {
+    app.get('/myArticles',logger, verifyToken, async (req, res) => {
+      const { email } = req.query;
+      const filter = { author_email: email };
+
+      const articles = await articlesCollection.find(filter).toArray();
+      res.send(articles)
+    })
+    app.get('/articles/:id',  async (req, res) => {
       const id = req.params.id;
       const email = req.query.email;
       // if (email !== req.decoded.email) {
@@ -121,7 +131,7 @@ async function run() {
       const result = await articlesCollection.findOne(filter);
       res.send(result)
     })
-    app.patch('/like/:articleId', async (req, res) => {
+    app.patch('/like/:articleId',logger, verifyToken, async (req, res) => {
       const id = req.params.articleId
       const { email } = req.body
       const filter = { _id: new ObjectId(id) }
@@ -169,7 +179,7 @@ async function run() {
     })
 
     //comment
-    app.post('/comments', async (req, res) => {
+    app.post('/comments',logger, verifyToken, async (req, res) => {
       const newComment = req.body
       const result = await commentsCollection.insertOne(newComment)
       res.send(result)
@@ -185,8 +195,8 @@ async function run() {
     })
 
 
-    await client.db("admin").command({ ping: 1 });
-    console.log("Pinged your deployment. You successfully connected to MongoDB!");
+    // await client.db("admin").command({ ping: 1 });
+    // console.log("Pinged your deployment. You successfully connected to MongoDB!");
   } finally {
 
   }
